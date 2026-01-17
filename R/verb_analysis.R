@@ -125,7 +125,7 @@ extract_renames <- function(args, arg_names) {
 
 #' Analyze verb and extract details
 #'
-#' @keywords internal
+#' @noRd
 analyze_verb <- function(call) {
   if (!rlang::is_call(call)) {
     return(list(
@@ -133,7 +133,8 @@ analyze_verb <- function(call) {
       icon = "⚙", 
       color = "#F8F9FA", 
       detail = NULL,
-      details = NULL
+      details = NULL,
+      join_df = NULL
     ))
   }
   
@@ -141,6 +142,7 @@ analyze_verb <- function(call) {
   
   # Extract arguments for context-aware icons
   detail <- NULL
+  join_df <- NULL
   
   # Check for desc() in arrange
   if (fn_name == "arrange") {
@@ -149,9 +151,19 @@ analyze_verb <- function(call) {
     detail <- if (has_desc) "desc" else "asc"
   }
   
-  # Detect join type
+  # Detect join type and extract joining data frame
   if (grepl("_join$", fn_name)) {
     detail <- sub("_join$", "", fn_name)
+    args <- rlang::call_args(call)
+    arg_names <- names(args)
+    
+    # Extract the data frame being joined
+    if (length(args) >= 1) {
+      join_expr <- args[[1]]
+      join_df <- deparse(join_expr, width.cutoff = 100)[1]
+      # Clean up the name
+      join_df <- trimws(join_df)
+    }
   }
   
   # Extract details for relevant verbs
@@ -159,7 +171,7 @@ analyze_verb <- function(call) {
   
   # Map to type, icon, and color
   verb_info <- dplyr::case_when(
-    fn_name %in% c("filter", "slice", "slice_head", "slice_tail", "slice_sample") ~ 
+    fn_name %in% c("filter", "slice", "slice_head", "slice_tail", "slice_sample", "slice_min", "slice_max") ~ 
       list(type = "filter", icon = "🔍", color = "#FFF4E6"),
     
     fn_name %in% c("select", "relocate") ~ 
@@ -171,7 +183,7 @@ analyze_verb <- function(call) {
     fn_name %in% c("mutate", "transmute") ~ 
       list(type = "mutate", icon = "✚", color = "#E3F2FD"),
     
-    fn_name %in% c("summarise", "summarize", "count", "tally") ~ 
+    fn_name %in% c("summarise", "summarize", "count", "tally", "add_count", "add_tally") ~ 
       list(type = "summarize", icon = "Σ", color = "#F3E5F5"),
     
     fn_name %in% c("group_by", "rowwise") ~ 
@@ -192,7 +204,7 @@ analyze_verb <- function(call) {
     fn_name %in% c("pivot_longer", "pivot_wider") ~ 
       list(type = "pivot", icon = "⇄", color = "#F1F8E9"),
     
-    fn_name %in% c("separate", "unite", "extract") ~ 
+    fn_name %in% c("separate", "separate_rows", "unite", "extract") ~ 
       list(type = "reshape", icon = "✂", color = "#FFF3E0"),
     
     fn_name %in% c("distinct", "unique") ~ 
@@ -204,5 +216,39 @@ analyze_verb <- function(call) {
     TRUE ~ list(type = "other", icon = "⚙", color = "#F8F9FA")
   )
   
-  c(verb_info, list(detail = detail, details = details))
+  c(verb_info, list(detail = detail, details = details, join_df = join_df))
+}
+
+#' Extract join arguments
+#' @noRd
+extract_join_args <- function(args, arg_names) {
+  if (is.null(arg_names) || length(args) == 0) return(NULL)
+  
+  details <- list()
+  join_df <- NULL
+  
+  # First unnamed arg or first arg is the data to join
+  if (length(args) >= 1) {
+    join_expr <- args[[1]]
+    join_df <- deparse(join_expr, width.cutoff = 100)[1]
+    if (nchar(join_df) > 20) {
+      join_df <- substr(join_df, 1, 20)
+    }
+    details[[1]] <- list(name = paste("with:", join_df), expr = "", type = "join_data")
+  }
+  
+  # Look for 'by' argument
+  by_idx <- which(arg_names == "by")
+  if (length(by_idx) > 0) {
+    by_expr <- args[[by_idx[1]]]
+    by_text <- deparse(by_expr, width.cutoff = 30)[1]
+    if (nchar(by_text) > 30) {
+      by_text <- paste0(substr(by_text, 1, 30), "...")
+    }
+    details[[length(details) + 1]] <- list(name = paste("by:", by_text), expr = "", type = "join_by")
+  }
+  
+  # Return both details and the joining data frame name
+  attr(details, "join_df") <- join_df
+  details
 }

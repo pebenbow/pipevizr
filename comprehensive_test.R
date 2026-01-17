@@ -1,6 +1,15 @@
-df1 <- mtcars %>% select(mpg, cyl)
-df2 <- mtcars %>% select(mpg, hp)
+library(nycflights13)
 
-joined <- df1 %>%
-  left_join(df2, by = 'mpg') %>%
-  filter(!is.na(hp))
+flights2 <- flights |> 
+  select(origin, dest, tailnum, carrier)
+
+airlines |>
+  arrange(name) |>
+  left_join(flights2, by = join_by(carrier)) -> results
+
+
+# TODO: handle when airlines first introduced inside left_join
+# TODO: handle when left_join has x&y arguments
+# TODO: handle pivot_longer and pivot_wider
+# TODO:JOIN nodes: put join_by criteria on subsequent lines
+# TODO:SELECT nodes: list columns on one line with text wrapping

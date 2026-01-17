@@ -4,6 +4,7 @@ devtools::document()
 devtools::load_all()
 
 library(dplyr)
+library(pipevizr)
 
 test_branches <- "test_branches.R"
 writeLines(c(
