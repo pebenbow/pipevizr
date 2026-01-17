@@ -1,0 +1,30 @@
+library(ggplot2)
+library(dplyr)
+
+mtcars |>
+  filter(cyl > 4, mpg > 20) |>
+  arrange(desc(mpg)) |>
+  select(mpg:hp) |>
+  mutate(
+    efficiency = mpg / hp,
+    power_ratio = hp / cyl
+  ) |>
+  summarize(
+    avg_eff = mean(efficiency),
+    max_eff = max(efficiency)
+  )
+
+df <- mtcars %>%
+  filter(cyl > 4, mpg > 20) %>%
+  arrange(desc(mpg)) %>%
+  select(mpg:hp) %>%
+  mutate(
+    efficiency = mpg / hp,
+    power_ratio = hp / cyl
+  )
+
+
+mtcars %>%
+  filter(cyl > 4) %>%
+  ggplot() + 
+  geom_point(aes(x = disp, y = mpg))

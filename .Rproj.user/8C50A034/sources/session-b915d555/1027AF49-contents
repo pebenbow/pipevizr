@@ -1,0 +1,27 @@
+library(dplyr)
+library(pipevizr)
+
+# Basic example
+pipe_vizr(
+  mtcars %>%
+    filter(cyl > 4) %>%
+    arrange(mpg) %>%
+    select(mpg, cyl, hp) %>%
+    mutate(efficiency = mpg / hp) %>%
+    summarize(
+      avg_eff = mean(efficiency),
+      max_eff = max(efficiency)
+    )
+)
+
+# With different direction
+pipe_vizr(
+  iris %>%
+    filter(Species == "setosa") %>%
+    group_by(Species) %>%
+    summarize(mean_length = mean(Sepal.Length)),
+  direction = "TB"
+)
+
+# Show legend
+pipe_legend()

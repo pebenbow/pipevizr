@@ -1,0 +1,135 @@
+#' Visualize a dplyr pipeline with interactive controls
+#'
+#' Creates an interactive visualization of a dplyr data transformation pipeline.
+#' Each transformation step is shown as a node with an icon representing the
+#' operation type. Nodes can be clicked to expand/collapse details about the
+#' transformation.
+#'
+#' @param ... A single pipeline expression (e.g., \code{df %>% filter(...) %>% mutate(...)})
+#' @param direction Graph layout direction: "LR" (left-right, default), "TB" (top-bottom),
+#'   "RL" (right-left), or "BT" (bottom-top)
+#' @param theme Visual theme: "default", "minimal", or "colorful"
+#' @param collapsed Start with node details collapsed (TRUE, default) or expanded (FALSE)
+#' @param keyboard Enable keyboard shortcuts (FALSE by default). When enabled:
+#'   \itemize{
+#'     \item Press 'E' to expand all nodes
+#'     \item Press 'C' to collapse all nodes
+#'   }
+#' @param return_graph If TRUE, return the graph object instead of rendering
+#'
+#' @return An interactive htmlwidget visualization (or graph object if \code{return_graph = TRUE})
+#'
+#' @section Interactive Controls:
+#' \itemize{
+#'   \item Click individual nodes to expand/collapse their details
+#'   \item Click the "Expand All" / "Collapse All" button in the top-right
+#'   \item Hover over nodes to highlight them
+#' }
+#'
+#' @section Supported Operations:
+#' The following dplyr verbs are recognized and visualized with custom icons:
+#' \itemize{
+#'   \item \strong{filter, slice}: Filter rows (🔍)
+#'   \item \strong{select, relocate}: Select columns (◫)
+#'   \item \strong{rename}: Rename columns (✎)
+#'   \item \strong{mutate, transmute}: Create/modify columns (✚)
+#'   \item \strong{summarize, summarise}: Aggregate data (Σ)
+#'   \item \strong{group_by, rowwise}: Group data (▦)
+#'   \item \strong{ungroup}: Remove grouping (▢)
+#'   \item \strong{arrange}: Sort rows (⇅)
+#'   \item \strong{*_join}: Join tables (⋈)
+#'   \item \strong{pivot_longer, pivot_wider}: Reshape data (⇄)
+#'   \item \strong{separate, unite}: Split/combine columns (✂)
+#'   \item \strong{distinct}: Remove duplicates (◈)
+#'   \item \strong{pull}: Extract vector (→)
+#' }
+#'
+#' @export
+#' @examples
+#' \dontrun{
+#' library(dplyr)
+#' library(pipevizr)
+#'
+#' # Basic usage
+#' pipe_vizr(
+#'   mtcars %>%
+#'     filter(cyl > 4) %>%
+#'     mutate(efficiency = mpg / hp)
+#' )
+#'
+#' # Complex pipeline with multiple operations
+#' pipe_vizr(
+#'   mtcars %>%
+#'     filter(cyl > 4, mpg > 20) %>%
+#'     arrange(desc(mpg), hp) %>%
+#'     select(mpg, cyl, hp, starts_with("d")) %>%
+#'     mutate(
+#'       efficiency = mpg / hp,
+#'       power_ratio = hp / cyl
+#'     ) %>%
+#'     group_by(cyl) %>%
+#'     summarize(
+#'       avg_eff = mean(efficiency),
+#'       max_eff = max(efficiency),
+#'       n = n()
+#'     )
+#' )
+#'
+#' # Vertical layout
+#' pipe_vizr(
+#'   iris %>%
+#'     filter(Species == "setosa") %>%
+#'     summarize(mean_length = mean(Sepal.Length)),
+#'   direction = "TB"
+#' )
+#'
+#' # Start with nodes expanded
+#' pipe_vizr(
+#'   mtcars %>%
+#'     filter(cyl > 4) %>%
+#'     summarize(avg_mpg = mean(mpg)),
+#'   collapsed = FALSE
+#' )
+#'
+#' # Enable keyboard shortcuts
+#' pipe_vizr(
+#'   mtcars %>%
+#'     filter(cyl > 4) %>%
+#'     mutate(efficiency = mpg / hp),
+#'   keyboard = TRUE
+#' )
+#'
+#' # Return graph object for inspection
+#' graph <- pipe_vizr(
+#'   mtcars %>% filter(cyl > 4),
+#'   return_graph = TRUE
+#' )
+#' print(graph$nodes)
+#' }
+pipe_vizr <- function(..., 
+                     direction = "LR", 
+                     theme = "default",
+                     collapsed = TRUE,
+                     keyboard = FALSE,
+                     return_graph = FALSE) {
+  dots <- as.list(substitute(list(...)))[-1]
+  
+  if (length(dots) != 1) {
+    rlang::abort("pipe_viz() expects exactly one pipeline expression.")
+  }
+  
+  expr <- dots[[1]]
+  graph <- pipe_graph(expr)
+  
+  if (return_graph) {
+    return(graph)
+  }
+  
+  viz <- pipe_render(graph, direction = direction, theme = theme, collapsed = collapsed)
+  
+  if (keyboard) {
+    viz <- add_keyboard_shortcuts(viz)
+  }
+  
+  viz
+}
