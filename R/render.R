@@ -51,7 +51,6 @@ calculate_node_width <- function(label, details, type, show_expressions) {
 create_node_label <- function(icon, label, is_input = FALSE, is_output = FALSE, 
                               is_ggplot = FALSE, details = NULL, type = "other", 
                               show_expressions = TRUE) {
-  # Escape special HTML characters
   esc_html <- function(x) {
     x <- gsub("&", "&amp;", x, fixed = TRUE)
     x <- gsub("<", "&lt;", x, fixed = TRUE)
@@ -62,39 +61,35 @@ create_node_label <- function(icon, label, is_input = FALSE, is_output = FALSE,
   
   label <- esc_html(label)
   
+  # Input/Output/ggplot nodes: always show icon + label
   if (is_input || is_output || is_ggplot) {
-    # Input/Output/ggplot nodes: icon + label
-    if (icon != "") {
-      return(sprintf(
-        '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
-          <TR>
-            <TD><FONT POINT-SIZE="14">%s</FONT></TD>
-            <TD><FONT POINT-SIZE="12"><B>%s</B></FONT></TD>
-          </TR>
-        </TABLE>>',
-        icon, label
-      ))
-    } else {
-      return(sprintf(
-        '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
-          <TR><TD><FONT POINT-SIZE="12"><B>%s</B></FONT></TD></TR>
-        </TABLE>>',
-        label
-      ))
-    }
+    return(sprintf(
+      '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="4">
+        <TR>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="14">%s</FONT></TD>
+          <TD ALIGN="LEFT"><FONT POINT-SIZE="12"><B>%s</B></FONT></TD>
+        </TR>
+      </TABLE>>',
+      icon, label
+    ))
   }
   
   # Extract just the function name for the header
   fn_name <- sub("\\(.*$", "", label)
   fn_name <- esc_html(fn_name)
   
+  # For join nodes, use "join" as the header
+  if (type == "join") {
+    fn_name <- "join"
+  }
+  
   # Build the table
   if (!is.null(details) && length(details) > 0) {
-    # Header row: icon in left cell (top-aligned), function name in right cell (centered)
+    # Header row: icon and function name, both left-aligned
     rows <- sprintf(
       '<TR>
          <TD ALIGN="LEFT" VALIGN="TOP"><FONT POINT-SIZE="14">%s</FONT></TD>
-         <TD ALIGN="CENTER" VALIGN="MIDDLE"><FONT POINT-SIZE="10"><B>%s</B></FONT></TD>
+         <TD ALIGN="LEFT" VALIGN="TOP"><FONT POINT-SIZE="10"><B>%s</B></FONT></TD>
        </TR>',
       icon, fn_name
     )
@@ -105,10 +100,9 @@ create_node_label <- function(icon, label, is_input = FALSE, is_output = FALSE,
     # Add detail rows based on type
     detail_rows <- purrr::map_chr(details, function(d) {
       d_name <- esc_html(d$name)
-      d_expr <- esc_html(d$expr)
+      d_expr <- if (!is.null(d$expr)) esc_html(d$expr) else ""
       
       if (type %in% c("mutate", "summarize", "transmute")) {
-        # Assignment format: name = expr
         if (show_expressions && d_expr != "") {
           sprintf(
             '<TR><TD COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="9" COLOR="#000000">%s</FONT> <FONT POINT-SIZE="8" COLOR="#000000">= %s</FONT></TD></TR>',
@@ -121,40 +115,34 @@ create_node_label <- function(icon, label, is_input = FALSE, is_output = FALSE,
           )
         }
       } else if (type == "filter") {
-        # Condition format: just the condition
         sprintf(
           '<TR><TD COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="9" COLOR="#000000">%s</FONT></TD></TR>',
           d_name
         )
       } else if (type == "arrange") {
-        # Sort format: arrow + variable name
         arrow <- if (d_expr == "desc") "↓" else "↑"
         sprintf(
           '<TR><TD COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="9" COLOR="#000000">%s %s</FONT></TD></TR>',
           arrow, d_name
         )
       } else if (type == "select") {
-        # Column format
-        if (d_expr != "") {
-          # Rename case
-          sprintf(
-            '<TR><TD COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="9" COLOR="#000000">%s</FONT> <FONT POINT-SIZE="8" COLOR="#000000">← %s</FONT></TD></TR>',
-            d_name, d_expr
-          )
-        } else {
-          sprintf(
-            '<TR><TD COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="9" COLOR="#000000">%s</FONT></TD></TR>',
-            d_name
-          )
-        }
+        # For select, d_name already contains comma-delimited string
+        sprintf(
+          '<TR><TD COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="9" COLOR="#000000">%s</FONT></TD></TR>',
+          d_name
+        )
       } else if (type == "rename") {
-        # Rename format: new ← old
         sprintf(
           '<TR><TD COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="9" COLOR="#000000">%s</FONT> <FONT POINT-SIZE="8" COLOR="#000000">← %s</FONT></TD></TR>',
           d_name, d_expr
         )
+      } else if (type == "join") {
+        # Join details: show join type and by clause
+        sprintf(
+          '<TR><TD COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="9" COLOR="#000000">%s</FONT></TD></TR>',
+          d_name
+        )
       } else {
-        # Default format
         sprintf(
           '<TR><TD COLSPAN="2" ALIGN="LEFT"><FONT POINT-SIZE="9" COLOR="#000000">%s</FONT></TD></TR>',
           d_name
@@ -181,7 +169,7 @@ create_node_label <- function(icon, label, is_input = FALSE, is_output = FALSE,
       '<<TABLE BORDER="0" CELLBORDER="0" CELLSPACING="0" CELLPADDING="3">
         <TR>
           <TD ALIGN="LEFT" VALIGN="TOP"><FONT POINT-SIZE="14">%s</FONT></TD>
-          <TD ALIGN="CENTER" VALIGN="MIDDLE"><FONT POINT-SIZE="10">%s</FONT></TD>
+          <TD ALIGN="LEFT" VALIGN="MIDDLE"><FONT POINT-SIZE="10">%s</FONT></TD>
         </TR>
       </TABLE>>',
       icon, label

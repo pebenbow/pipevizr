@@ -1,6 +1,6 @@
 #' Extract details from various dplyr verbs
 #'
-#' @keywords internal
+#' @noRd
 extract_verb_details <- function(call, max_show = 5) {
   if (!rlang::is_call(call)) return(NULL)
   
@@ -28,13 +28,21 @@ extract_verb_details <- function(call, max_show = 5) {
                     "filter" = extract_conditions(args),
                     
                     # arrange: show each sort variable
-                    "arrange" = extract_sort_vars(args),
+                    "arrange" = extract_arrange_vars(args),
                     
                     # select: show selected columns
                     "select" = extract_selections(args, arg_names),
                     
                     # rename: show old -> new
                     "rename" = extract_renames(args, arg_names),
+                    
+                    # joins: show join type and by clause
+                    "left_join" = extract_join_details("left", args, arg_names),
+                    "inner_join" = extract_join_details("inner", args, arg_names),
+                    "right_join" = extract_join_details("right", args, arg_names),
+                    "full_join" = extract_join_details("full", args, arg_names),
+                    "semi_join" = extract_join_details("semi", args, arg_names),
+                    "anti_join" = extract_join_details("anti", args, arg_names),
                     
                     NULL
   )
@@ -45,6 +53,37 @@ extract_verb_details <- function(call, max_show = 5) {
       details[1:max_show],
       list(list(name = sprintf("... +%d more", length(details) - max_show), expr = ""))
     )
+  }
+  
+  details
+}
+
+#' Extract join details (type and by clause)
+#' @noRd
+extract_join_details <- function(join_type, args, arg_names) {
+  details <- list()
+  
+  # First detail: join type
+  details[[1]] <- list(name = paste0(join_type, "_join"), expr = "")
+  
+  # Look for 'by' argument
+  if (!is.null(arg_names)) {
+    by_idx <- which(arg_names == "by")
+    if (length(by_idx) > 0) {
+      by_expr <- args[[by_idx[1]]]
+      by_text <- deparse(by_expr, width.cutoff = 500)[1]
+      
+      # Clean up the by text
+      by_text <- gsub("^c\\((.*)\\)$", "\\1", by_text)  # Remove c() wrapper if present
+      by_text <- gsub('"', "", by_text)  # Remove quotes
+      
+      max_len <- 40
+      if (nchar(by_text) > max_len) {
+        by_text <- paste0(substr(by_text, 1, max_len), "...")
+      }
+      
+      details[[2]] <- list(name = paste("by:", by_text), expr = "")
+    }
   }
   
   details
@@ -97,18 +136,40 @@ extract_sort_vars <- function(args) {
 }
 
 #' Extract select columns
-#' @keywords internal
+#' @noRd
 extract_selections <- function(args, arg_names) {
-  purrr::map2(args, arg_names %||% rep("", length(args)), function(expr, nm) {
+  # Instead of individual items, create a single comma-delimited string
+  col_names <- purrr::map2_chr(args, arg_names %||% rep("", length(args)), function(expr, nm) {
+    # Check for selection helpers
+    if (rlang::is_call(expr)) {
+      fn <- rlang::call_name(expr)
+      if (fn %in% c("starts_with", "ends_with", "contains", "matches", 
+                    "everything", "last_col", "any_of", "all_of")) {
+        return(deparse(expr, width.cutoff = 30)[1])
+      }
+    }
+    
+    # Regular column selection or rename
     if (nm != "") {
-      # Renamed column
+      # Renamed column: show as "new = old"
       old <- deparse(expr, width.cutoff = 20)[1]
-      list(name = nm, expr = old)
+      return(paste0(nm, " = ", old))
     } else {
-      text <- deparse(expr, width.cutoff = 30)[1]
-      list(name = text, expr = "")
+      return(deparse(expr, width.cutoff = 30)[1])
     }
   })
+  
+  # Combine into single string
+  combined <- paste(col_names, collapse = ", ")
+  
+  # Truncate if too long
+  max_len <- 60
+  if (nchar(combined) > max_len) {
+    combined <- paste0(substr(combined, 1, max_len), "...")
+  }
+  
+  # Return as single detail item
+  list(list(name = combined, expr = ""))
 }
 
 #' Extract rename mappings

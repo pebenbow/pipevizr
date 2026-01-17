@@ -1,10 +1,10 @@
-pipe_vizr_file("comprehensive_test.R", direction = "TB")
-
 devtools::document()
 devtools::load_all()
 
 library(dplyr)
 library(pipevizr)
+
+pipe_vizr_file("comprehensive_test.R", direction = "TB")
 
 test_branches <- "test_branches.R"
 writeLines(c(

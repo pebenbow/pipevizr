@@ -17,7 +17,7 @@ pipe_graph <- function(expr) {
       purrr::map_chr(parts$steps, as_label_1line)
     ),
     type  = c("input", purrr::map_chr(step_info, "type")),
-    icon  = c("", purrr::map_chr(step_info, "icon")),
+    icon  = c("📅", purrr::map_chr(step_info, "icon")),  # Table icon for input
     color = c("#E8F0FE", purrr::map_chr(step_info, "color")),
     detail = c(NA_character_, purrr::map_chr(step_info, ~.x$detail %||% NA_character_)),
     details = c(list(NULL), purrr::map(step_info, "details")),
@@ -45,7 +45,7 @@ pipe_graph <- function(expr) {
       id = nrow(nodes) + 1L,
       label = parts$output,
       type = "output",
-      icon = "",
+      icon = "📅",  # Table icon for output
       color = "#E8F0FE",
       detail = NA_character_,
       details = list(NULL),
