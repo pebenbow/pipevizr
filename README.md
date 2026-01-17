@@ -10,3 +10,5 @@
 pipevizR is an R package for creating visual dataflow diagrams from
 dplyr pipeline code. This is meant to help data scientists with tracing
 data lineage on complex projects.
+
+![](demo.png)
