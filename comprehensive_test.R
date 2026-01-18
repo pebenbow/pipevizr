@@ -1,3 +1,33 @@
+library(pipevizr)
+
+pipe_vizr_file(
+  "test_pipeline.R", 
+  direction = "TB"
+)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 library(nycflights13)
 
 flights2 <- flights |> 
@@ -6,6 +36,22 @@ flights2 <- flights |>
 airlines |>
   filter(name == "American Airlines Inc.") |>
   left_join(flights2, by = join_by(carrier)) -> results
+
+
+
+test_pipeline <- "test_pipeline.R"
+writeLines(c(
+  "library(nycflights13)",
+  "library(dplyr)",
+  "",
+  "flights2 <- flights |> ",
+  "  select(origin, dest, tailnum, carrier)",
+  "",
+  "airlines |>",
+  "  filter(name == 'American Airlines Inc.') |>",
+  "  left_join(flights2, by = join_by(carrier)) -> results"
+), test_pipeline)
+
 
 
 # TODO: handle when airlines first introduced inside left_join
